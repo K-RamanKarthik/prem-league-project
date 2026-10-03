@@ -13,10 +13,36 @@ import plotly.express as px
 import os
 import sys
 
+try:
+    from scipy.spatial import ConvexHull
+    HAS_SCIPY = True
+except ImportError:
+    HAS_SCIPY = False
+
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 if hasattr(sys.stderr, 'reconfigure'):
     sys.stderr.reconfigure(encoding='utf-8')
+
+CLUSTER_COLORS = [
+    "#FF4B4B",  # Vibrant Red
+    "#00D4FF",  # Bright Cyan
+    "#FFC72C",  # Warm Yellow
+    "#00E676",  # Neon Green
+    "#AB47BC",  # Electric Purple
+    "#FFA726",  # Orange
+    "#26C6DA",  # Teal
+    "#EC407A",  # Pink
+    "#7E57C2",  # Deep Violet
+    "#78909C"   # Slate Blue
+]
+
+def hex_to_rgba(hex_str: str, opacity: float = 0.15) -> str:
+    """Convert hex color string to rgba string."""
+    hex_str = hex_str.lstrip('#')
+    r, g, b = tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
+    return f"rgba({r}, {g}, {b}, {opacity})"
+
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -71,14 +97,55 @@ STAT_GLOSSARY = {
 # ============================================================
 # Data Loading (cached)
 # ============================================================
+def fix_mojibake(val):
+    """Fix cp1252/latin1 mojibake characters to proper UTF-8 strings."""
+    if not isinstance(val, str):
+        return val
+    if any(c in val for c in ["Ã", "Â", "Å"]):
+        try:
+            return val.encode("latin1").decode("utf-8")
+        except Exception:
+            return val
+    return val
+
 @st.cache_data
 def load_data():
-    """Load all processed data."""
-    outfield = pd.read_csv(os.path.join(config.PROCESSED_DIR, "outfield_final.csv"))
-    outfield_scaled = pd.read_csv(os.path.join(config.PROCESSED_DIR, "outfield_scaled_final.csv"))
-    gk = pd.read_csv(os.path.join(config.PROCESSED_DIR, "gk_final.csv"))
-    gk_scaled = pd.read_csv(os.path.join(config.PROCESSED_DIR, "gk_scaled_final.csv"))
+    """Load all processed data with UTF-8 character decoding."""
+    outfield = pd.read_csv(os.path.join(config.PROCESSED_DIR, "outfield_final.csv"), encoding="utf-8")
+    outfield_scaled = pd.read_csv(os.path.join(config.PROCESSED_DIR, "outfield_scaled_final.csv"), encoding="utf-8")
+    gk = pd.read_csv(os.path.join(config.PROCESSED_DIR, "gk_final.csv"), encoding="utf-8")
+    gk_scaled = pd.read_csv(os.path.join(config.PROCESSED_DIR, "gk_scaled_final.csv"), encoding="utf-8")
+
+    # Clean character encodings across all loaded datasets
+    for d in [outfield, outfield_scaled, gk, gk_scaled]:
+        for col in d.select_dtypes(include=["object"]).columns:
+            d[col] = d[col].apply(fix_mojibake)
+        if "Player" in d.columns:
+            d["Player"] = d["Player"].astype(str).str.strip()
+
     return outfield, outfield_scaled, gk, gk_scaled
+
+
+def get_sorted_players(df: pd.DataFrame) -> list[str]:
+    """
+    Return sorted list of player names:
+    1. Active players with > 0 minutes first in alphabetical order (e.g. #1 Aaron Hickey).
+    2. Players with 0 minutes second.
+    3. 'Aaron Anselmino' (and any Anselmo variations) pushed explicitly to the absolute bottom of the list.
+    """
+    players = df["Player"].dropna().unique().tolist()
+
+    def player_sort_key(p_name: str):
+        p_lower = p_name.lower()
+        if "anselm" in p_lower or "anselim" in p_lower:
+            return (3, p_lower)
+        p_rows = df[df["Player"] == p_name]
+        mins = p_rows["minutes"].iloc[0] if not p_rows.empty and "minutes" in p_rows.columns else 0
+        if mins == 0:
+            return (2, p_lower)
+        return (0, p_lower)
+
+    return sorted(players, key=player_sort_key)
 
 
 # ============================================================
@@ -119,6 +186,7 @@ def create_multi_player_radar(df: pd.DataFrame, selected_players: list[str], fea
         ))
 
     fig.update_layout(
+        font=dict(family="Inter, Outfit, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif", color="white"),
         polar=dict(
             bgcolor="#141b2d",
             radialaxis=dict(visible=True, range=[0, 100], color="#888", gridcolor="#2a364f"),
@@ -141,115 +209,197 @@ def create_multi_player_radar(df: pd.DataFrame, selected_players: list[str], fea
     return fig
 
 
-def create_interactive_cluster_map(df: pd.DataFrame, highlight_players: list[str] = None) -> go.Figure:
-    """Create an interactive 2D PCA cluster map with region color splitting & hover tooltips."""
+def create_interactive_cluster_map(
+    df: pd.DataFrame, 
+    highlight_players: list[str] = None,
+    zone_style: str = "Convex Hull Bubbles",
+    show_centroids: bool = True
+) -> go.Figure:
+    """Create a remade, high-precision 2D PCA interactive cluster map from scratch."""
     fig = go.Figure()
+
+    if df.empty or "pca_x" not in df.columns or "pca_y" not in df.columns:
+        return fig
 
     x = df["pca_x"].values
     y = df["pca_y"].values
-    cluster_ids = df["cluster_id"].values
 
-    # Grid for background region color splitting
-    grid_x = np.linspace(x.min() - 0.6, x.max() + 0.6, 100)
-    grid_y = np.linspace(y.min() - 0.6, y.max() + 0.6, 100)
-    xx, yy = np.meshgrid(grid_x, grid_y)
+    sorted_clusters = sorted(df["cluster_name"].unique())
+    cluster_color_map = {c_name: CLUSTER_COLORS[i % len(CLUSTER_COLORS)] for i, c_name in enumerate(sorted_clusters)}
 
-    unique_c = np.unique(cluster_ids)
-    centers = np.array([[x[cluster_ids == c].mean(), y[cluster_ids == c].mean()] for c in unique_c])
+    # --- 1. Background Playstyle Region Shading ---
+    if zone_style == "Convex Hull Bubbles" and HAS_SCIPY:
+        for c_name in sorted_clusters:
+            c_df = df[df["cluster_name"] == c_name]
+            pts = c_df[["pca_x", "pca_y"]].values
+            c_color = cluster_color_map[c_name]
 
-    grid_points = np.c_[xx.ravel(), yy.ravel()]
-    dists = np.linalg.norm(grid_points[:, np.newaxis] - centers, axis=2)
-    zz = unique_c[np.argmin(dists, axis=1)].reshape(xx.shape)
+            if len(pts) >= 3:
+                try:
+                    hull = ConvexHull(pts)
+                    hull_pts = pts[hull.vertices]
+                    cx, cy = pts[:, 0].mean(), pts[:, 1].mean()
 
-    # Background Voronoi region shading
-    fig.add_trace(go.Contour(
-        x=grid_x, y=grid_y, z=zz,
-        showscale=False, opacity=0.18,
-        contours=dict(coloring="heatmap", showlines=False),
-        colorscale="Viridis",
-        hoverinfo="skip"
-    ))
+                    # Expand hull slightly (10%) from centroid for smooth envelopment
+                    exp_x = list(cx + 1.10 * (hull_pts[:, 0] - cx))
+                    exp_y = list(cy + 1.10 * (hull_pts[:, 1] - cy))
 
-    colors = ["#FF4B4B", "#00D4FF", "#FFC72C", "#00E676", "#AB47BC", "#FFA726", "#26C6DA"]
+                    # Close loop
+                    exp_x.append(exp_x[0])
+                    exp_y.append(exp_y[0])
 
-    # Scatter points per cluster
-    for i, cluster_name in enumerate(sorted(df["cluster_name"].unique())):
-        c_mask = df["cluster_name"] == cluster_name
-        c_df = df[c_mask]
+                    fig.add_trace(go.Scatter(
+                        x=exp_x, y=exp_y,
+                        mode="lines",
+                        fill="toself",
+                        fillcolor=hex_to_rgba(c_color, 0.12),
+                        line=dict(color=c_color, width=1.5, dash="dot"),
+                        name=f"{c_name} Region",
+                        hoverinfo="skip",
+                        showlegend=False
+                    ))
+                except Exception:
+                    pass
+
+    elif zone_style == "Continuous KNN Grid":
+        margin_x = (x.max() - x.min()) * 0.08
+        margin_y = (y.max() - y.min()) * 0.08
+        grid_x = np.linspace(x.min() - margin_x, x.max() + margin_x, 100)
+        grid_y = np.linspace(y.min() - margin_y, y.max() + margin_y, 100)
+        xx, yy = np.meshgrid(grid_x, grid_y)
+
+        grid_points = np.c_[xx.ravel(), yy.ravel()]
+        cluster_centers = np.array([
+            df[df["cluster_name"] == c_name][["pca_x", "pca_y"]].mean().values
+            for c_name in sorted_clusters
+        ])
+
+        dists = np.linalg.norm(grid_points[:, np.newaxis] - cluster_centers, axis=2)
+        nearest_idx = np.argmin(dists, axis=1).reshape(xx.shape)
+
+        n_c = len(sorted_clusters)
+        colorscale = []
+        for idx, c_name in enumerate(sorted_clusters):
+            c_hex = cluster_color_map[c_name]
+            v_start = idx / n_c
+            v_end = (idx + 1) / n_c
+            colorscale.append([v_start, hex_to_rgba(c_hex, 0.15)])
+            colorscale.append([v_end, hex_to_rgba(c_hex, 0.15)])
+
+        fig.add_trace(go.Heatmap(
+            x=grid_x, y=grid_y, z=nearest_idx,
+            colorscale=colorscale,
+            showscale=False,
+            hoverinfo="skip"
+        ))
+
+    # --- 2. Scatter Points Per Cluster ---
+    for c_name in sorted_clusters:
+        c_df = df[df["cluster_name"] == c_name]
+        c_color = cluster_color_map[c_name]
 
         hover_texts = []
         for _, row in c_df.iterrows():
+            p_name = row["Player"]
+            sq = row.get("Squad", "N/A")
+            po = row.get("Pos", "N/A")
+            mins = int(row.get("minutes", 0))
+
             txt = (
-                f"<b>{row['Player']}</b><br>"
-                f"Team: {row['Squad']} | Pos: {row['Pos']}<br>"
-                f"Playstyle: {row['cluster_name']}<br>"
-                f"Minutes: {int(row['minutes'])}<br>"
+                f"<b>{p_name}</b> ({sq} • {po})<br>"
+                f"Archetype: <b>{c_name}</b> | Minutes: <b>{mins:,}'</b><br>"
             )
             if "goals_per90" in row:
-                txt += f"Goals/90: {row['goals_per90']:.2f} | Assists/90: {row['assists_per90']:.2f}<br>"
-                txt += f"xG/90: {row['xg_per90']:.2f} | Tackles/90: {row['tackles_per90']:.2f}"
+                txt += (
+                    f"Goals/90: <b>{row.get('goals_per90', 0):.2f}</b> | Assists/90: <b>{row.get('assists_per90', 0):.2f}</b><br>"
+                    f"xG/90: <b>{row.get('xg_per90', 0):.2f}</b> | Tackles/90: <b>{row.get('tackles_per90', 0):.2f}</b>"
+                )
             else:
-                txt += f"Save %: {row['save_pct']:.1f}% | CS %: {row['clean_sheet_pct']:.1f}%"
+                txt += (
+                    f"Save %: <b>{row.get('save_pct', 0):.1f}%</b> | CS %: <b>{row.get('clean_sheet_pct', 0):.1f}%</b><br>"
+                    f"Saves/90: <b>{row.get('saves_per90', 0):.2f}</b>"
+                )
             hover_texts.append(txt)
 
         fig.add_trace(go.Scatter(
             x=c_df["pca_x"],
             y=c_df["pca_y"],
             mode="markers",
-            name=cluster_name,
+            name=c_name,
             text=hover_texts,
             hoverinfo="text",
             marker=dict(
                 size=9,
-                color=colors[i % len(colors)],
-                line=dict(width=0.8, color="white"),
+                color=c_color,
+                line=dict(width=0.8, color="rgba(255,255,255,0.8)"),
                 opacity=0.85
             )
         ))
 
-    # Highlight selected player(s)
+    # --- 4. Highlighted Players ---
     if highlight_players:
         for hp in highlight_players:
             hp_mask = df["Player"].str.contains(hp, case=False, na=False)
             if hp_mask.any():
-                hp_data = df[hp_mask].iloc[0]
+                hp_row = df[hp_mask].iloc[0]
                 fig.add_trace(go.Scatter(
-                    x=[hp_data["pca_x"]],
-                    y=[hp_data["pca_y"]],
+                    x=[hp_row["pca_x"]],
+                    y=[hp_row["pca_y"]],
                     mode="markers+text",
-                    name=f"⭐ {hp_data['Player']}",
-                    text=[f"  <b>{hp_data['Player']}</b>"],
+                    name=f"⭐ {hp_row['Player']}",
+                    text=[f"  <b>{hp_row['Player']} ({hp_row['Squad']})</b>"],
                     textposition="top right",
-                    textfont=dict(color="white", size=12),
-                    hoverinfo="skip",
+                    textfont=dict(color="#FFD700", size=13),
+                    hoverinfo="text",
+                    hovertext=f"<b>⭐ {hp_row['Player']}</b><br>Team: {hp_row['Squad']}<br>Cluster: {hp_row['cluster_name']}",
                     marker=dict(
                         size=18,
                         symbol="star",
                         color="#FF0055",
-                        line=dict(width=2, color="white")
-                    )
+                        line=dict(width=2.5, color="#FFFFFF")
+                    ),
+                    showlegend=False
                 ))
 
+    # --- 5. Figure Layout & Styling ---
     fig.update_layout(
-        title=dict(text="<b>Player Playstyle Map (PCA Projection & Regions)</b>", font=dict(size=15, color="white")),
-        xaxis=dict(title="PCA Axis 1", color="white", gridcolor="#2a364f", showgrid=True),
-        yaxis=dict(title="PCA Axis 2", color="white", gridcolor="#2a364f", showgrid=True),
+        title=dict(text="<b>Premier League Playstyle Cluster Map (2D PCA Projection)</b>", font=dict(size=16, color="white")),
+        font=dict(family="Inter, Outfit, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Arial, sans-serif", color="white"),
+        dragmode="pan",
+        xaxis=dict(
+            title="<b>PCA Axis 1 — Attacking Threat & Creative Progression →</b>",
+            color="#cbd5e1",
+            gridcolor="#1e293b",
+            showgrid=True,
+            zerolinecolor="#334155"
+        ),
+        yaxis=dict(
+            title="<b>PCA Axis 2 — Directness & Defensive Engagement →</b>",
+            color="#cbd5e1",
+            gridcolor="#1e293b",
+            showgrid=True,
+            zerolinecolor="#334155"
+        ),
         paper_bgcolor="#0e1117",
-        plot_bgcolor="#141b2d",
-        height=520,
-        margin=dict(l=30, r=30, t=50, b=40),
+        plot_bgcolor="#0f172a",
+        height=600,
+        margin=dict(l=40, r=40, t=50, b=50),
+        hoverlabel=dict(bgcolor="#1e293b", font_size=12, font_family="sans-serif"),
         legend=dict(
             orientation="h",
             yanchor="bottom",
-            y=-0.25,
+            y=-0.22,
             xanchor="center",
             x=0.5,
-            font=dict(color="white", size=10),
-            bgcolor="rgba(14,17,23,0.8)"
+            font=dict(color="white", size=11),
+            bgcolor="rgba(15, 23, 42, 0.85)",
+            bordercolor="#334155",
+            borderwidth=1
         )
     )
 
     return fig
+
 
 
 def create_comparison_bar(player_name: str, similar_player_name: str,
@@ -295,6 +445,25 @@ def create_comparison_bar(player_name: str, similar_player_name: str,
 # Main App
 # ============================================================
 def main():
+    # --- Inject Google European Fonts (Inter & Outfit) ---
+    st.markdown(
+        """
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap');
+            
+            html, body, [class*="css"], .stMarkdown, .stSelectbox, .stMultiSelect, .stSlider, div {
+                font-family: 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif !important;
+            }
+            
+            h1, h2, h3, h4, h5, h6 {
+                font-family: 'Outfit', 'Inter', sans-serif !important;
+                letter-spacing: -0.02em;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     # --- Header ---
     st.title("⚽ Premier League Player Scout")
     st.markdown("*Find similar players, compare overlapping radars, and explore playstyle clusters — PL 2025-26*")
@@ -316,7 +485,7 @@ def main():
     # --- Sidebar ---
     st.sidebar.header("🔍 Player Search & Comparison")
 
-    player_type = st.sidebar.radio("Player Type", ["Outfield", "Goalkeeper"])
+    player_type = st.sidebar.radio("Player Type", ["Outfield", "Goalkeeper"], key="player_type_radio")
 
     if player_type == "Outfield":
         df = outfield
@@ -327,8 +496,8 @@ def main():
         df_scaled = gk_scaled
         feature_cols = [c for c in config.GK_FEATURES if c in df.columns]
 
-    # Full list of all players (sorted alphabetically)
-    all_players = sorted(df["Player"].dropna().unique().tolist())
+    # Sorted list of all players (Aaron Hickey #1 at top, Anselmino moved to bottom)
+    all_players = get_sorted_players(df)
 
     # --- PRIMARY GENERAL DROPDOWN (PROMINENT AT TOP) ---
     selected_player = st.sidebar.selectbox(
@@ -375,8 +544,17 @@ def main():
         )
 
     # Sidebar Quick Stat Guide Expander
-    with st.sidebar.expander("📖 Quick Stat Guide"):
-        st.caption("Key Metrics Defined:")
+    with st.sidebar.expander("📖 Quick Stat & Role Guide"):
+        st.caption("Positions & Role Abbreviations:")
+        st.markdown("**GK**: Goalkeeper (Shot-Stopper / Sweeper)")
+        st.markdown("**DF / CB**: Center Back (Ball-Playing / Stopper)")
+        st.markdown("**FB / WB**: Fullback / Wingback (Inverted / Overlapping)")
+        st.markdown("**MF / DM**: Defensive Midfielder (Holding / Regista / Destroyer)")
+        st.markdown("**MF / CM / B2B**: Central / Box-to-Box Midfielder")
+        st.markdown("**AM / #10**: Attacking Midfielder / Playmaker")
+        st.markdown("**FW / W / ST**: Winger / Striker (Inside Forward / False 9)")
+        st.divider()
+        st.caption("Key Metric Abbreviations:")
         st.markdown("**xG / 90**: Expected Goals per 90 mins")
         st.markdown("**xA / 90**: Expected Assists per 90 mins")
         st.markdown("**SCA / 90**: Shot-Creating Actions per 90 mins")
@@ -385,6 +563,12 @@ def main():
         st.markdown("**PrgP / 90**: Progressive Passes >= 10 yards forward")
         st.markdown("**PrgC / 90**: Progressive Carries >= 10 yards forward")
         st.markdown("**PSxG +/-**: Post-shot xG minus goals allowed")
+
+    # Sidebar About Expander
+    with st.sidebar.expander("👨‍💻 About & Links"):
+        st.markdown("**Created by:** Kotamraju Raman Karthik")
+        st.markdown("🔗 [GitHub Repository](https://github.com/K-RamanKarthik/prem-league-project)")
+        st.markdown("🔗 [LinkedIn Profile](https://www.linkedin.com/in/kotamraju-raman-karthik/)")
 
     st.sidebar.divider()
     if st.sidebar.button("🔄 Update Data & Re-run Pipeline"):
@@ -427,8 +611,8 @@ def main():
     st.divider()
 
     # ---- Tabs ----
-    tab1, tab2, tab3, tab4 = st.tabs([
-        "📊 Radar Comparison", "👥 Similar Players", "🗺️ Cluster Map", "📖 Full Stats & Guide"
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 Radar Comparison", "👥 Similar Players", "🗺️ Cluster Map", "📖 Full Stats & Guide", "ℹ️ About"
     ])
 
     # Combine primary player + compare players for radar
@@ -494,27 +678,79 @@ def main():
     # ---- Tab 3: Interactive Cluster Map ----
     with tab3:
         st.subheader("🗺️ Interactive Player Cluster Map")
-        st.caption("Hover over dots to see player details. Background colors show playstyle regional boundaries.")
+        st.caption("Explore 2D PCA playstyle projection of Premier League players. Regions represent distinct tactical playstyle archetypes.")
 
-        fig_cluster = create_interactive_cluster_map(df, highlight_players=radar_players)
-        st.plotly_chart(fig_cluster, use_container_width=True)
+        # Interactive Controls
+        c_col1, c_col2 = st.columns([3, 2])
+        with c_col1:
+            map_highlights = st.multiselect(
+                "⭐ Highlight Players on Map",
+                all_players,
+                default=[selected_player] if selected_player in all_players else [],
+                key="cluster_map_highlights"
+            )
+        with c_col2:
+            zone_style = st.selectbox(
+                "🎨 Playstyle Region Display",
+                ["Convex Hull Bubbles", "Continuous KNN Grid", "Points Only (No Regions)"],
+                index=0,
+                key="cluster_map_zone_style"
+            )
+
+        # Render Cluster Map
+        fig_cluster = create_interactive_cluster_map(
+            df,
+            highlight_players=map_highlights,
+            zone_style=zone_style
+        )
+        st.plotly_chart(
+            fig_cluster,
+            use_container_width=True,
+            config={
+                "scrollZoom": True,
+                "displayModeBar": False
+            }
+        )
 
         st.divider()
-        st.subheader("Cluster Summary Breakdown")
-        cluster_summary = (
-            df.groupby("cluster_name")
-            .agg(
-                Players=("Player", "count"),
-                Avg_Minutes=("minutes", "mean"),
+
+        # Archetype Breakdown Cards
+        st.subheader("📊 Tactical Archetypes Breakdown")
+        clusters_in_df = sorted(df["cluster_name"].unique())
+        card_cols = st.columns(min(len(clusters_in_df), 4))
+
+        for idx, c_name in enumerate(clusters_in_df):
+            col = card_cols[idx % len(card_cols)]
+            c_sub = df[df["cluster_name"] == c_name]
+            top_player = c_sub.sort_values("minutes", ascending=False).iloc[0]["Player"] if not c_sub.empty else "N/A"
+            c_color = CLUSTER_COLORS[idx % len(CLUSTER_COLORS)]
+
+            with col:
+                st.markdown(f"""
+                <div style="background-color: #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 10px; border-left: 4px solid {c_color};">
+                    <h4 style="margin: 0; color: white; font-size: 14px;">{c_name}</h4>
+                    <p style="margin: 4px 0; font-size: 20px; font-weight: bold; color: {c_color};">{len(c_sub)} <span style="font-size: 11px; color: #94a3b8;">players</span></p>
+                    <p style="margin: 0; font-size: 11px; color: #cbd5e1;"><b>Top Rep:</b> {top_player}</p>
+                    <p style="margin: 0; font-size: 11px; color: #94a3b8;">Avg Mins: {int(c_sub['minutes'].mean()):,}'</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+        # Expandable Dataframe
+        with st.expander("📋 View Complete Cluster Summary Table"):
+            summary_df = (
+                df.groupby("cluster_name")
+                .agg(
+                    Players=("Player", "count"),
+                    Avg_Minutes=("minutes", "mean"),
+                )
+                .round(0)
+                .sort_values("Players", ascending=False)
             )
-            .round(0)
-            .sort_values("Players", ascending=False)
-        )
-        st.dataframe(cluster_summary, use_container_width=True)
+            st.dataframe(summary_df, use_container_width=True)
 
     # ---- Tab 4: Full Stats & Complete Stat Guide ----
     with tab4:
-        st.subheader(f"📋 Full Stats — {selected_player}")
+        st.subheader(f"📋 Full Stats Profile — {selected_player}")
 
         player_stats = df[player_mask][feature_cols].T
         player_stats.columns = [selected_player]
@@ -531,14 +767,94 @@ def main():
         st.dataframe(guide_df, use_container_width=True, hide_index=True)
 
         st.divider()
-        st.subheader("📖 Complete Premier League Stat Glossary")
+
+        # Section 1: Position Abbreviations & Tactical Roles Guide
+        st.subheader("⚽ Premier League Position Abbreviations & Tactical Roles")
+        st.caption("Comprehensive guide to position codes and modern tactical role archetypes.")
+
+        role_col1, role_col2 = st.columns(2)
+
+        with role_col1:
+            st.markdown("""
+            #### 🛡️ Defensive Positions & Roles
+            - **GK (Goalkeeper)**:
+              - **Shot-Stopper**: Reaction saves, high Save % and positive PSxG +/-.
+              - **Sweeper-Keeper**: High defensive action distance and long distribution launches.
+            - **DF / CB (Center Back)**:
+              - **Ball-Playing Defender (BPD)**: High progressive passes (`PrgP/90`) and pass accuracy.
+              - **Stopper / Anchor**: High tackles (`Tkl/90`), blocks (`Blk/90`), and aerial duels (`Aer Won/90`).
+            - **FB / WB (Full Back / Wing Back)**:
+              - **Inverted Fullback**: Tucks into central midfield during team build-up.
+              - **Overlapping Wingback**: High progressive carries (`PrgC/90`), key passes (`KP/90`), and crosses.
+            """)
+
+        with role_col2:
+            st.markdown("""
+            #### ⚔️ Midfield & Forward Positions & Roles
+            - **DM / MF (Defensive Midfielder)**:
+              - **Holding / Regista**: Deep-lying playmaker controlling game tempo with high touch volume.
+              - **Destroyer / Ball-Winner**: Aggressive pressing, tackles (`Tkl/90`), and interceptions (`Int/90`).
+            - **CM / B2B (Central / Box-to-Box Midfielder)**:
+              - **Engine / B2B**: High volume touches, box-to-box movement, and progressive actions.
+            - **AM / CAM / #10 (Attacking Midfielder)**:
+              - **Creative Playmaker**: High key passes (`KP/90`), xA/90, and shot-creating actions (`SCA/90`).
+              - **Shadow Striker**: Operates near penalty box with high xG/90 and goal-creating actions (`GCA/90`).
+            - **FW / W / ST (Winger / Striker)**:
+              - **Inside Forward / Winger**: Dribbles past defenders (`Succ Drib/90`) and cuts inside to shoot.
+              - **Target Man / Striker (False 9)**: Physical presence, aerial dominance, and goal finishing.
+            """)
+
+        st.divider()
+
+        # Section 2: Playstyle Cluster Archetypes
+        st.subheader("🏷️ Scouting Playstyle Cluster Archetypes")
+        st.markdown("""
+        The machine learning model categorizes Premier League players into 6 playstyle archetypes based on K-Means clustering:
+
+        - 🔵 **Possession-Based + Playmaking**: Controllers who maintain high pass completion (`pass_completion_pct`) and dictate play.
+        - 🟢 **Progressive Passing + Playmaking**: Midfield orchestrators who break defensive lines with long-range forward passes (`progressive_passes_per90`).
+        - 🟡 **Aerial + Dribbling / Direct Threat**: Direct physical players excelling in 1v1 take-ons (`successful_dribbles_per90`) and aerial duels (`aerials_won_per90`).
+        - 🔴 **Goal-Scoring + Goal-Creating**: Primary attackers with high expected goals (`xg_per90`), shot volume, and goal-creating actions (`gca_per90`).
+        - 🟣 **Shot-Stopping Goalkeeper**: Goalkeepers evaluated on post-shot expected goals saved (`psxg_minus_ga`) and save percentage (`save_pct`).
+        - 🟠 **Sweeper / Distributing Keeper**: Goalkeepers active outside the penalty box with long range launches and high defensive action distance.
+        """)
+
+        st.divider()
+
+        # Section 3: Stat Glossary Reference Table
+        st.subheader("📖 Complete Stat Metrics & Abbreviations Glossary")
+        stat_table_rows = []
         for key, desc in STAT_GLOSSARY.items():
-            l_name = key.replace("_per90", "/90").replace("_pct", " %").replace("_", " ").title()
-            st.markdown(f"**{l_name}**: {desc}")
+            abbrev = key.replace("_per90", "/90").replace("_pct", "%").replace("_", " ").title()
+            cat = "Goalkeeping" if any(k in key for k in ["gk", "save", "psxg", "clean", "crosses", "goals_against"]) else (
+                "Attacking" if any(k in key for k in ["goal", "xg", "shot", "gca"]) else (
+                    "Playmaking" if any(k in key for k in ["pass", "xa", "sca", "carry", "dribble", "key"]) else "Defensive"
+                )
+            )
+            stat_table_rows.append({"Abbreviation / Metric": abbrev, "Category": cat, "Definition & Guide": desc})
+
+        stat_guide_df = pd.DataFrame(stat_table_rows)
+        st.dataframe(stat_guide_df, use_container_width=True, hide_index=True)
+
+    # ---- Tab 5: About & Links ----
+    with tab5:
+        st.subheader("ℹ️ About the Project & Creator")
+        st.markdown("""
+        **Premier League Player Scouting System (2025-26)** is an AI/ML powered football analytics application 
+        that clusters players by playstyle archetypes and identifies statistical equivalents across the Premier League.
+        
+        #### 👨‍💻 Creator & Links:
+        - **Author**: Kotamraju Raman Karthik
+        - 🐙 **GitHub**: [github.com/K-RamanKarthik/prem-league-project](https://github.com/K-RamanKarthik/prem-league-project)
+        - 💼 **LinkedIn**: [linkedin.com/in/kotamraju-raman-karthik/](https://www.linkedin.com/in/kotamraju-raman-karthik/)
+        """)
 
     # ---- Footer ----
     st.divider()
-    st.caption("Data: Premier League 2025-26 | Built with Streamlit, Plotly & scikit-learn")
+    st.markdown(
+        "Data: Premier League 2025-26 | Built by [Kotamraju Raman Karthik](https://www.linkedin.com/in/kotamraju-raman-karthik/) | "
+        "[GitHub Repository](https://github.com/K-RamanKarthik/prem-league-project)"
+    )
 
 
 if __name__ == "__main__":

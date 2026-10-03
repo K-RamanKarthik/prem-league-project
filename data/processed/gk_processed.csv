@@ -1,25 +1,74 @@
 Player,Squad,Pos,Age,Nation,minutes,90s_played,saves_per90,save_pct,clean_sheet_pct,goals_against_per90,psxg_minus_ga,passes_completed_pct_gk,passes_launched_pct,crosses_stopped_pct,avg_distance_defensive_actions
 David Raya MartÃ­n,Arsenal,GK,31,eng ENG,450.0,5.0,1.8,69.23076923076923,60.0,0.8,1.8,52.3,40.0,2.0,16.58
+Kepa Arrizabalaga Revuelta,Arsenal,GK,32,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Illan Meslier,Arsenal,GK,26,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Marco Bizot,Aston Villa,GK,35,eng ENG,90.0,1.0,3.0,42.85714285714285,0.0,4.0,-0.2999999999999999,25.0,40.0,2.0,14.52
 Zion Suzuki,Aston Villa,GK,24,eng ENG,360.0,4.0,3.75,75.0,25.0,1.25,0.75,57.8,40.0,2.4,16.1
+James Wright,Aston Villa,GK,22,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 ÄorÄe PetroviÄ,Bournemouth,GK,27,eng ENG,450.0,5.0,2.2,57.89473684210527,0.0,1.6,-0.0999999999999998,46.1,40.0,2.0,15.4
+Fraser Forster,Bournemouth,GK,38,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Will Dennis,Bournemouth,GK,26,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Michele Di Gregorio,Bournemouth,GK,29,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 CaoimhÃ­n Kelleher,Brentford,GK,28,eng ENG,450.0,5.0,3.4,80.95238095238095,40.0,0.8,1.1,59.0,40.0,2.1,16.44
+HÃ¡kon Rafn Valdimarsson,Brentford,GK,25,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Ellery Balcombe,Brentford,GK,27,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Bart Verbruggen,Brighton,GK,24,eng ENG,450.0,5.0,2.4,70.58823529411765,60.0,1.0,0.4500000000000002,56.9,40.0,2.0,16.64
+Jason Steele,Brighton,GK,36,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Emiliano MartÃ­nez Romero,Chelsea,GK,34,eng ENG,360.0,4.0,4.5,64.28571428571429,0.0,2.5,0.3,72.5,40.0,2.0,15.72
 Robert Lynch SÃ¡nchez,Chelsea,GK,29,eng ENG,90.0,1.0,4.0,66.66666666666666,0.0,2.0,0.1,25.0,40.0,2.0,14.62
+Filip JÃ¶rgensen,Chelsea,GK,24,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Mike Penders,Chelsea,GK,21,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Carl Rushworth,Coventry City,GK,25,eng ENG,450.0,5.0,1.8,47.368421052631575,20.0,2.0,-0.6,45.3,40.0,2.0,15.62
+Oliver Dovin,Coventry City,GK,24,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Ben Wilson,Coventry City,GK,34,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Dan Bentley,Coventry City,GK,33,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Dean Henderson,Crystal Palace,GK,29,eng ENG,270.0,3.0,4.0,60.0,0.0,2.6666666666666665,2.220446049250313e-16,48.4,40.0,2.0,15.24
 Walter BenÃ­tez,Crystal Palace,GK,33,eng ENG,180.0,2.0,2.5,62.5,50.0,1.5,0.05,25.0,40.0,2.0,15.08
+Remi Matthews,Crystal Palace,GK,32,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Jordan Pickford,Everton,GK,32,eng ENG,450.0,5.0,3.0,83.33333333333334,60.0,0.6,1.05,59.6,40.0,2.1,16.92
+Mark Travers,Everton,GK,27,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Tom King,Everton,GK,31,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Bernd Leno,Fulham,GK,34,eng ENG,450.0,5.0,3.2,66.66666666666666,20.0,1.6,0.4000000000000001,63.8,40.0,2.0,16.04
+Benjamin Lecomte,Fulham,GK,35,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Alfie McNally,Fulham,GK,25,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Dillon Phillips,Hull City,GK,31,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Jack Butland,Hull City,GK,33,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Harvey Cartwright,Hull City,GK,24,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+ThimothÃ©e Lo-Tutala,Hull City,GK,23,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Konstantinos Tzolakis,Hull City,GK,24,eng ENG,450.0,5.0,3.4,80.95238095238095,60.0,0.8,2.6,75.0,40.0,2.0,17.08
 Christian Walton,Ipswich Town,GK,31,eng ENG,90.0,1.0,1.0,50.0,0.0,1.0,-0.0499999999999999,25.0,40.0,2.0,14.7
+Alex Palmer,Ipswich Town,GK,30,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+David Button,Ipswich Town,GK,37,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Kayne van Oevelen,Ipswich Town,GK,23,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Kjell Scherpen,Ipswich Town,GK,26,eng ENG,360.0,4.0,3.75,60.0,0.0,2.5,0.0,51.8,40.0,2.4,15.3
+Lucas Estella Perri,Leeds,GK,29,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 James Trafford,Leeds,GK,24,eng ENG,450.0,5.0,4.0,86.95652173913044,40.0,0.6,1.55,74.3,40.0,2.0,16.84
+Alex Cairns,Leeds,GK,33,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Michael Zetterer,Leeds,GK,31,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Alisson Becker,Liverpool,GK,34,eng ENG,450.0,5.0,2.8,77.77777777777779,60.0,0.8,0.8000000000000002,49.6,40.0,3.0,16.42
+Giorgi Mamardashvili,Liverpool,GK,26,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Freddie Woodman,Liverpool,GK,29,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Armin Pecsi,Liverpool,GK,25,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Vitezslav Jaros,Liverpool,GK,25,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Harvey Davies,Liverpool,GK,23,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Gianluigi Donnarumma,Man City,GK,27,eng ENG,450.0,5.0,2.8,73.68421052631578,40.0,1.0,0.6500000000000001,56.3,40.0,2.0,16.18
+Marcus Bettinelli,Man City,GK,34,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+GerÃ³nimo Rulli,Man City,GK,34,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Karl Darlow,Man Utd,GK,36,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Senne Lammens,Man Utd,GK,24,eng ENG,450.0,5.0,3.2,66.66666666666666,0.0,1.6,0.4000000000000001,66.4,40.0,2.0,15.66
+Altay BayÄ±ndÄ±r,Man Utd,GK,28,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Tom Heaton,Man Utd,GK,40,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Nick Pope,Newcastle,GK,34,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Mark Gillespie,Newcastle,GK,34,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Ewen Jaouen,Newcastle,GK,21,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 LukÃ¡s HornÃ­cek,Newcastle,GK,24,eng ENG,450.0,5.0,3.8,67.85714285714286,20.0,1.8,0.5500000000000003,77.8,40.0,3.3,15.94
 Matz Sels,Nott'm Forest,GK,34,eng ENG,450.0,5.0,2.2,68.75,20.0,1.0,0.3500000000000001,41.0,40.0,2.0,15.84
+John Victor Maciel Furtado,Nott'm Forest,GK,30,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Steven Benda,Nott'm Forest,GK,28,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Guglielmo Vicario,Spurs,GK,30,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Brandon Austin,Spurs,GK,27,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 AntonÃ­n KinskÃ½,Spurs,GK,23,eng ENG,450.0,5.0,2.4,60.0,40.0,1.6,2.220446049250313e-16,52.4,40.0,3.0,16.04
+Martin Dubravka,Spurs,GK,37,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
 Robin Roefs,Sunderland,GK,23,eng ENG,450.0,5.0,1.2,37.5,20.0,2.0,-0.8999999999999999,36.7,40.0,2.1,15.32
+Anthony Patterson,Sunderland,GK,26,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5
+Melker Ellborg,Sunderland,GK,23,eng ENG,0.0,0.0,0.0,72.0,0.0,0.0,0.0,25.0,40.0,2.0,14.5

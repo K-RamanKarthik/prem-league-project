@@ -1,84 +1,91 @@
 # ⚽ Premier League Player Scouting & Similarity System (2025-26)
 
-Hey! This is a machine learning scouting dashboard I built for Premier League football analytics. 
+Hey! This is an AI/ML-powered football scouting & analytics application built for the Premier League 2025-26 season.
 
-It takes player performance stats from the current 2025-26 season, normalizes everything to per-90 metrics, clusters players into distinct playstyle archetypes using K-Means, and lets you find statistical "twins" for any player using Cosine Similarity.
+It processes performance stats for all 660+ active Premier League players across all 20 teams, normalizes metrics per-90 minutes, clusters players into playstyle archetypes using **K-Means**, and finds statistical equivalents for any player using **Cosine Similarity**.
 
 ---
 
-## 💡 What it does
+## 💡 Key Features & Upgrades
 
-- **Live Data Collection**: Automatically pulls data for all 660+ active Premier League players across all 20 teams (supporting both live PL API data and FBref scraping).
-- **Per-90 Normalization**: Converts raw stats (goals, xG, assists, xA, key passes, progressive carries, tackles, interceptions) into per-90 metrics so low-minute rotational players can be compared fairly against starters.
-- **K-Means Playstyle Clustering**: Groups outfield players into 6 playstyle archetypes (like *Goal-Scoring + Shot-Volume*, *Ball-Progressing + High-Touch*, *Possession-Based*) and goalkeepers into 3 distinct styles.
-- **Interactive Cluster Map**: Visualizes player clusters in 2D space using PCA (Principal Component Analysis) with Voronoi region background colors and interactive hover cards.
-- **Overlapping Radar Charts**: Compare percentile profiles for multiple players on the same radar plot.
-- **Similarity Search**: Calculates cosine similarity on scaled feature vectors to rank top player matches (e.g., finding the closest statistical alternatives to Bukayo Saka, Erling Haaland, or Rodri).
+- **Complete Premier League Squad Database**: Includes all 667 active Premier League players (594 outfield players + 73 goalkeepers across 20 teams) with `MIN_MINUTES_PLAYED = 0`.
+- **Per-90 Normalization**: Converts raw totals into per-90 metrics (goals, xG, assists, xA, key passes, progressive carries/passes, tackles, interceptions) for fair comparisons.
+- **K-Means Playstyle Clustering**: Clusters outfield players into 6 playstyle archetypes (e.g., *Goal-Scoring + Goal-Creating*, *Possession-Based Playmaking*, *Progressive Passing*, *Aerial + Dribbling*) and goalkeepers into distinct styles.
+- **Interactive 2D PCA Cluster Map**: Visualizes playstyle clusters in 2D space with color-matched translucent **Convex Hull Bubbles**, **Continuous KNN Decision Grid** options, **scroll-to-zoom**, and **click-and-drag pan**.
+- **Overlapping Multi-Player Radars**: Compare percentile profiles for up to 4 players simultaneously on a single radar chart.
+- **Cosine Similarity Matcher**: Ranks top statistical equivalents (e.g., finding alternatives to Bukayo Saka, Erling Haaland, or Rodri).
+- **Tactical Roles & Stat Guide**: Includes a comprehensive guide explaining position abbreviations (**GK**, **DF/CB**, **FB/WB**, **MF/DM/CM**, **AM/#10**, **FW/W/ST**), tactical roles, and per-90 metric definitions.
+- **European Character & Accent Support**: Full UTF-8 string decoding (*Martin Ødegaard*, *Jurriën Timber*, *Gabriel dos Santos Magalhães*, *Victor Lindelöf*, *Pascal Groß*) styled with Google Fonts (**Inter** & **Outfit**).
+
+---
+
+> [!NOTE]  
+> **Player Dropdown Ordering & Aaron Anselmino Note**:  
+> Player selection dropdowns prioritize active players with >0 minutes played in alphabetical order. This ensures that **Aaron Hickey** (Brentford, 742 mins) is the #1 default player at index 0 when the dashboard opens, displaying full radar charts and stats right away.  
+>   
+> **Aaron Anselmino** (and other players with 0 minutes played in the 2025-26 season) has been moved to the **bottom of the player list** so 0-stat profiles don't block the default view, while remaining 100% searchable and accessible at the end of the list.
 
 ---
 
 ## 🛠️ Project Setup & How to Run
 
-First, clone the repo and install the requirements:
+Clone the repository and install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 1. Run the Data & Machine Learning Pipeline
-To pull the latest stats, process per-90 features, and train the K-Means & PCA models, run:
+### 1. Run Data Scraping & ML Pipeline
+To fetch data, extract per-90 features, and train the K-Means & PCA models, run:
 
 ```bash
 python run_pipeline.py
 ```
 
-*Note: If you already fetched the data and just want to tweak features or re-train models, you can skip the scraping step:*
+*To re-train ML models or update features without re-scraping live data, use:*
 
 ```bash
 python run_pipeline.py --skip-scrape
 ```
 
-### 2. Launch the Streamlit Web App
-Once the pipeline finishes, start the interactive dashboard:
+### 2. Launch the Streamlit Dashboard
+Start the web app:
 
 ```bash
 streamlit run app.py
 ```
 
-The app will launch at `http://localhost:8501`.
+Open `http://localhost:8501` (or `http://localhost:8510`) in your browser.
 
 ---
 
-## 📁 Repository Layout
+## 📁 Repository Structure
 
-Here is how the project files are organized:
-
-- `app.py`: Streamlit web dashboard with Plotly radar charts, cluster maps, similarity search, and stat glossaries.
-- `run_pipeline.py`: One-command script that runs data collection, feature processing, and ML model training in sequence.
-- `scraper.py`: Fetches 2025-26 Premier League player stats across all 20 teams.
-- `features.py`: Cleans raw CSVs, converts totals to per-90 stats, and normalizes feature vectors using `StandardScaler`.
-- `model.py`: Trains K-Means clustering, PCA dimensionality reduction, and Cosine Similarity models.
-- `config.py`: Central config file for feature lists, cluster numbers, paths, and thresholds.
-- `data/`: Raw and processed CSV datasets (`data/raw/`, `data/processed/`).
-- `models/`: Saved `.pkl` models for scalers and K-Means.
-
----
-
-## ⚙️ Customization (`config.py`)
-
-You can tweak parameters inside `config.py`:
-- `MIN_MINUTES_PLAYED`: Minimum minutes required for a player to be included (set to 45 mins).
-- `N_CLUSTERS_OUTFIELD`: Number of playstyle clusters for outfield players (default: 6).
-- `N_CLUSTERS_GK`: Number of goalkeeper clusters (default: 3).
-- `OUTFIELD_FEATURES` & `GK_FEATURES`: The specific metrics used for training the models.
+- `app.py`: Streamlit web dashboard featuring overlapping radar charts, remade PCA cluster maps, similarity matcher, and tactical guides.
+- `run_pipeline.py`: Pipeline executor running data collection, feature engineering, and model training in sequence.
+- `scraper.py`: Fetches 2025-26 Premier League data via live FPL API with FBref fallback.
+- `features.py`: Cleans raw CSVs, calculates per-90 metrics, and normalizes feature vectors using `StandardScaler`.
+- `model.py`: Fits K-Means clustering, PCA 2D projections, and Cosine Similarity models.
+- `config.py`: Central configuration for feature lists, cluster parameters, paths, and thresholds.
+- `data/`: Raw and processed dataset files (`data/raw/`, `data/processed/`).
+- `models/`: Saved `.pkl` model files for scalers, K-Means, and PCA models.
 
 ---
 
 ## 🧰 Tech Stack
 
-- **Framework & Dashboard**: Streamlit, Plotly
-- **Machine Learning**: scikit-learn (KMeans, PCA, StandardScaler, Cosine Similarity)
-- **Data Wrangling**: pandas, numpy
-- **Web Scraping & APIs**: requests, BeautifulSoup, curl_cffi
+- **Dashboard & UI**: Streamlit, Plotly, HTML/CSS (Inter & Outfit Google Fonts)
+- **Machine Learning**: scikit-learn (KMeans, PCA, StandardScaler, Cosine Similarity), scipy
+- **Data Processing**: pandas, numpy
+- **Data Scraping & APIs**: requests, BeautifulSoup, curl_cffi
 
-Feel free to check it out, tweak the cluster numbers in `config.py`, or deploy it on Streamlit Cloud!
+---
+
+## 👨‍💻 Author & Connect
+
+Created by **Kotamraju Raman Karthik**
+
+- 🐙 **GitHub Repository**: [K-RamanKarthik/prem-league-project](https://github.com/K-RamanKarthik/prem-league-project)
+- 💼 **LinkedIn Profile**: [Kotamraju Raman Karthik](https://www.linkedin.com/in/kotamraju-raman-karthik/)
+
+Feel free to star the repository or connect on LinkedIn!

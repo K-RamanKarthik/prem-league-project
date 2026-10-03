@@ -39,7 +39,7 @@ REQUEST_DELAY = 6  # seconds between requests (FBref max = 10 req/min)
 
 # --- Feature Engineering ---
 # Minimum minutes played to include a player
-MIN_MINUTES_PLAYED = 45  # Filter out players with less than 45 mins
+MIN_MINUTES_PLAYED = 0  # Include every single player in the Premier League (all 660+ players)
 
 # Stats to use for clustering (per 90 minutes where applicable)
 OUTFIELD_FEATURES = [
